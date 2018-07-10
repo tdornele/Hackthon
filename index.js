@@ -23,11 +23,11 @@ app.get('/', function (req, res) {
 			return data['aggr']['sum'] / data['aggr']['count']['$numberLong']
 		})
 
-		var firstList  = ema(values, n).map(x => x * 3);
-		var secondList = ema(ema(values, n), n).map(x => x * 3);
-		var thirdList  = ema(ema(ema(values, n), n), n);
+		//var firstList  = ema(values, n).map(x => x * 3);
+		//var secondList = ema(ema(values, n), n).map(x => x * 3);
+		//var thirdList  = ema(ema(ema(values, n), n), n);
 
-		var emaValue = [...Array(100).keys()].map(() => null).concat(ema(values, n));
+		var emaValue = [...Array(n).keys()].map(() => null).concat(ema(values, n));
 
 		var emsList = emaValue.map((x, key) => ems(x, emsList, values[key]));
 
@@ -36,9 +36,9 @@ app.get('/', function (req, res) {
 				return null;
 			}
 			else {
-				return x + emsList[key];
+				return parseFloat(x) + emsList[key];
 			}
-		} );
+		});
 
 		var lowEMS  = emaValue.map((x, key) => {
 			if (x === null) {
@@ -47,22 +47,18 @@ app.get('/', function (req, res) {
 			else {
 				return x - emsList[key];
 			}
-		} );
-
-		var allEMS  = highEMS.map((x, key) => {
+		});
+		var allEMS = highEMS.map((x, key) => {
+			//console.log('x: ' + x, 'lems: ' + parseFloat(lowEMS[key], 'ems: ' + emsList[key]));
 			return [parseFloat(x), parseFloat(lowEMS[key])]
 		});
-		
-		console.log("\nhigh" + highEMS);
-		console.log("\nlow" + lowEMS);
-		console.log("\nema" + emaValue);
-		console.log("\nems" + emsList);
-		
-		
+
 		for (var index in values) {
 			getAnomalies(values[index], emaValue[index], emsList[index]);
 			//getAnomalies(values[index], emaValue[index],0.5)
 		}
+
+		console.log(allEMS[101], ' ' + emaValue[101])
 
 		res.send({
 			data   : values,
@@ -79,20 +75,18 @@ app.listen(3000, function () {
 
 function ems(emaValue, preEMS, value) {
 	var w = 2 / (n + 1);
-	
+
 	if (preEMS === undefined) {
 		return Math.sqrt(w * (Math.pow(emaValue, 2) + ((1 - w) * (Math.pow((value - emaValue), 2)))));
 	}
 	else {
 		return Math.sqrt(w * (Math.pow(preEMS[preEMS.length() - 1], 2) + ((1 - w) * (Math.pow((value - emaValue), 2)))));
 	}
-	
-	console.log('\n\nEMA: ' + emaValue + '\nValue: ' + value)
 }
 
 function getAnomalies(value, emaValue, emsList) {
 
-	var difference = Math.abs(value - emaValue);
+	var difference  = Math.abs(value - emaValue);
 	var sensitivity = n * emsList;
 
 	if (difference > sensitivity) {
