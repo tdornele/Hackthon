@@ -4,6 +4,7 @@ var jsonfile = require('jsonfile');
 var file     = 'data.json'
 var app      = express();
 var n        = 100;
+var initial = 0;
 var cors     = require('cors');
 app.use(cors());
 
@@ -33,11 +34,10 @@ app.get('/', function (req, res) {
 		//console.log(equation);
 
 		var emaValue = [...Array(100).keys()].map(() => null).concat(ema(values, n));
+		var emsList = emaValue.map((x, key) => ems(x, initial, values[key]));
 
-		var emsList = emaValue.map((x, key) => ems(x, emsList, values[key]));
-
-		var highEMS = values.map((x, key) => x + emsList[key]);
-		var lowEMS  = values.map((x, key) => x - emsList[key]);
+		var highEMS = emaValue.map((x, key) => x + emsList[key]);
+		var lowEMS  = emaValue.map((x, key) => x - emsList[key]);
 		var allEMS  = highEMS.map((x, key) => {
 			return [x, lowEMS[key]]
 		});
@@ -51,7 +51,8 @@ app.get('/', function (req, res) {
 		res.send({
 			data   : values,
 			ema    : emaValue,
-			allEMS : allEMS
+			allEMS : allEMS,
+			ems : emsList
 		});
 	})
 })
@@ -64,8 +65,10 @@ app.listen(3000, function () {
 function ems(emaValue, preEMS, value) {
 	var w = 2 / (n + 1);
 
-	console.log('\n\nEMA: ' + emaValue + '\nValue: ' + value)
-	return Math.sqrt(w * (Math.pow(preEMS,2) + ((1 - w) * (Math.pow((value - emaValue),2)))));
+	console.log('\n\nEMA: ' + emaValue + '\nValue: ' + value);
+	var nextEMS = Math.sqrt(w * (Math.pow(preEMS,2) + ((1 - w) * (Math.pow((value - emaValue),2)))));
+	initial = emaValue;
+	return nextEMS;
 }
 
 function getAnomalies(value, emaValue, emsList) {
