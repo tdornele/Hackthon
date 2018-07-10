@@ -1,0 +1,62 @@
+[
+  {
+    "_id": {
+      "$oid": "5b1bcfe32a17d1719d77c43f"
+    },
+    "gruid": "B2wlGfhNQn56IKi4lr9DiZOaGS8PyfeU1OdeERPUu39SzHpYJpBD3Q2QWiCEK8rj",
+    "metric_id": "\/com\/intergral\/fusionreactor\/apm\/cpu\/all\/instance",
+    "ts": {
+      "$date": "2018-06-09T13:00:00.000Z"
+    },
+    "account_id": {
+      "$oid": "53299a67678118040c008cac"
+    },
+    "dvm": {
+      "created": {
+        "$date": "2018-06-09T13:00:15.783Z"
+      },
+      "retain_until": {
+        "$date": "2018-09-07T13:00:15.783Z"
+      }
+    },
+    "aggr": {
+      "sum": 54286,
+      "sos": 2497262.5774,
+      "count": {
+        "$numberLong": "3217"
+      },
+      "min": 0,
+      "max": 61.0725
+    }
+  },
+  {
+    "_id": {
+      "$oid": "5b1bddc32a17d1719d840f84"
+    },
+    "gruid": "B2wlGfhNQn56IKi4lr9DiZOaGS8PyfeU1OdeERPUu39SzHpYJpBD3Q2QWiCEK8rj",
+    "metric_id": "\/com\/intergral\/fusionreactor\/apm\/cpu\/all\/instance",
+    "ts": {
+      "$date": "2018-06-09T14:00:00.000Z"
+    },
+    "account_id": {
+      "$oid": "53299a67678118040c008cac"
+    },
+    "dvm": {
+      "created": {
+        "$date": "2018-06-09T14:00:15.774Z"
+      },
+      "retain_until": {
+        "$date": "2018-09-07T14:00:15.774Z"
+      }
+    },
+    "aggr": {
+      "sum": 51554.07,
+      "sos": 2415999.7173,
+      "count": {
+        "$numberLong": "3305"
+      },
+      "min": 0,
+      "max": 73.8075
+    }
+  }
+  ]
