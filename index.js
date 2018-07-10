@@ -43,7 +43,7 @@ app.get('/', function (req, res) {
 		});
 		//console.log(allEMS);
 
-		for (var index in values){
+		for (var index in values) {
 			getAnomalies(values[index], emaValue[index], emsList[index]);
 			//getAnomalies(values[index], emaValue[index],0.5)
 		}
@@ -65,22 +65,13 @@ function ems(emaValue, preEMS, value) {
 	var w = 2 / (n + 1);
 
 	console.log('\n\nEMA: ' + emaValue + '\nValue: ' + value)
-	return Math.sqrt(w * (Math.pow(preEMS,2) + ((1 - w) * (Math.pow((value - emaValue),2)))));
+	return Math.sqrt(w * (Math.pow(preEMS, 2) + ((1 - w) * (Math.pow((value - emaValue), 2)))));
 }
 
 function getAnomalies(value, emaValue, emsList) {
-	var difference = value - emaValue;
-	if (difference < 0) {
-		difference *= -1;
-	}
-	var sensitivity = n * emsList;
 
-	//// Testing to see what values show up
-	//console.log('\n\nTEST!');
-	//console.log('Value: ' + value);
-	//console.log('emaValue: ' + emaValue);
-	//console.log('Diff: ' + difference);
-	//console.log('Sens: ' + sensitivity);
+	var difference = Math.abs(value - emaValue);
+	var sensitivity = n * emsList;
 
 	if (difference > sensitivity) {
 		//return "ALARM!";
