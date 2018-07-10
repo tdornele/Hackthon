@@ -63,11 +63,9 @@ app.listen(3000, function () {
 
 function ems(emaValue, preEMS, value) {
 	var w = 2 / (n + 1);
-	//if (value == undefined){
-	//	value = 0;
-	//}
+
 	console.log('\n\nEMA: ' + emaValue + '\nValue: ' + value)
-	return Math.sqrt(w * (preEMS ^ 2) + ((1 - w) * ((value - emaValue) ^ 2)));
+	return Math.sqrt(w * (Math.pow(preEMS,2) + ((1 - w) * (Math.pow((value - emaValue),2)))));
 }
 
 function getAnomalies(value, emaValue, emsList) {
