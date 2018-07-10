@@ -27,22 +27,38 @@ app.get('/', function (req, res) {
 		var secondList = ema(ema(values, n), n).map(x => x * 3);
 		var thirdList  = ema(ema(ema(values, n), n), n);
 
-		//var equation = firstList.map((x, key) => {
-		//	return x - secondList[key] + (thirdList[key] || 0);
-		//});
-		//console.log(equation);
-
 		var emaValue = [...Array(100).keys()].map(() => null).concat(ema(values, n));
 
 		var emsList = emaValue.map((x, key) => ems(x, emsList, values[key]));
 
-		var highEMS = values.map((x, key) => x + emsList[key]);
-		var lowEMS  = values.map((x, key) => x - emsList[key]);
-		var allEMS  = highEMS.map((x, key) => {
-			return [x, lowEMS[key]]
-		});
-		//console.log(allEMS);
+		var highEMS = emaValue.map((x, key) => {
+			if (x === null) {
+				return null;
+			}
+			else {
+				return x + emsList[key];
+			}
+		} );
 
+		var lowEMS  = emaValue.map((x, key) => {
+			if (x === null) {
+				return null;
+			}
+			else {
+				return x - emsList[key];
+			}
+		} );
+
+		var allEMS  = highEMS.map((x, key) => {
+			return [parseFloat(x), parseFloat(lowEMS[key])]
+		});
+		
+		console.log("\nhigh" + highEMS);
+		console.log("\nlow" + lowEMS);
+		console.log("\nema" + emaValue);
+		console.log("\nems" + emsList);
+		
+		
 		for (var index in values) {
 			getAnomalies(values[index], emaValue[index], emsList[index]);
 			//getAnomalies(values[index], emaValue[index],0.5)
@@ -63,9 +79,15 @@ app.listen(3000, function () {
 
 function ems(emaValue, preEMS, value) {
 	var w = 2 / (n + 1);
-
+	
+	if (preEMS === undefined) {
+		return Math.sqrt(w * (Math.pow(emaValue, 2) + ((1 - w) * (Math.pow((value - emaValue), 2)))));
+	}
+	else {
+		return Math.sqrt(w * (Math.pow(preEMS[preEMS.length() - 1], 2) + ((1 - w) * (Math.pow((value - emaValue), 2)))));
+	}
+	
 	console.log('\n\nEMA: ' + emaValue + '\nValue: ' + value)
-	return Math.sqrt(w * (Math.pow(preEMS, 2) + ((1 - w) * (Math.pow((value - emaValue), 2)))));
 }
 
 function getAnomalies(value, emaValue, emsList) {
