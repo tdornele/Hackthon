@@ -1,7 +1,6 @@
 var express     = require('express');
 var fs          = require('fs');
 var jsonfile    = require('jsonfile');
-var LeakyBucket = require('leaky-bucket');
 var L
 var file        = 'data.json'
 var app         = express();
@@ -55,12 +54,12 @@ app.get('/', function (req, res) {
 		for (var index in values) {
 			//getAnomalies(values[index], emaValue[index], emsList[index]);
 			//getAnomalies(values[index], emaValue[index],0.5)
-			var thing = getAnomalies(values[index], lowEMS[index], highEMS[index], 1.1, index)
+			var thing = getAnomalies(values[index], lowEMS[index], highEMS[index], 0.5, index)
 			if (thing !== null) {
 				anomalies.push(thing);
 			}
-
 		}
+		console.log(anomalies.length);
 
 		//var anomalies = values.map((x, key) => {
 		//	return getAnomalies(x, lowEMS[key], highEMS[key], 1.1)
@@ -109,14 +108,17 @@ function ems(emaValue, preEMS, value) {
 //		}
 //	}
 function getAnomalies(value, lems, hems, tolerance, index) {
+	var firstLems = lems;
+	var firstHems = hems;
 	lems *= tolerance;
-	hems *= tolerance
-
+	hems *= (1+tolerance)
 	if (value > hems || value < lems) {
+		console.log('\n\nFIRST LEMS: ' + firstLems + '           FIRST HEMS: ' + firstHems);
+		console.log('lems: ' + lems + '      hems: ' + hems + '       value: ' + value)
 		return {
-			x: index,
-			title: '',
-			text: ''
+			x: index
+			//title: '',
+			//text: ''
 		}
 	}
 	else
