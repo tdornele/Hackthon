@@ -3,6 +3,8 @@ var fs       = require('fs');
 var jsonfile = require('jsonfile');
 var file     = 'dump (1).json'
 var app      = express();
+var http = require('http').Server(app);
+var io = require('socket.io')(http);
 var n        = 100;
 var cors     = require('cors');
 app.use(cors());
