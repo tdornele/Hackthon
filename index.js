@@ -1,10 +1,12 @@
-var express  = require('express');
-var fs       = require('fs');
-var jsonfile = require('jsonfile');
-var file     = 'data.json'
-var app      = express();
-var n        = 100;
-var cors     = require('cors');
+var express     = require('express');
+var fs          = require('fs');
+var jsonfile    = require('jsonfile');
+var LeakyBucket = require('leaky-bucket');
+var L
+var file        = 'data.json'
+var app         = express();
+var n           = 100;
+var cors        = require('cors');
 app.use(cors());
 
 var amount = 0;
@@ -23,10 +25,6 @@ app.get('/', function (req, res) {
 			return data['aggr']['sum'] / data['aggr']['count']['$numberLong']
 		})
 
-		//var firstList  = ema(values, n).map(x => x * 3);
-		//var secondList = ema(ema(values, n), n).map(x => x * 3);
-		//var thirdList  = ema(ema(ema(values, n), n), n);
-
 		var emaValue = [...Array(n).keys()].map(() => null).concat(ema(values, n));
 
 		var emsList = emaValue.map((x, key) => ems(x, emsList, values[key]));
@@ -40,7 +38,7 @@ app.get('/', function (req, res) {
 			}
 		});
 
-		var lowEMS  = emaValue.map((x, key) => {
+		var lowEMS = emaValue.map((x, key) => {
 			if (x === null) {
 				return null;
 			}
@@ -53,17 +51,26 @@ app.get('/', function (req, res) {
 			return [parseFloat(x), parseFloat(lowEMS[key])]
 		});
 
+		var anomalies = [];
 		for (var index in values) {
-			getAnomalies(values[index], emaValue[index], emsList[index]);
+			//getAnomalies(values[index], emaValue[index], emsList[index]);
 			//getAnomalies(values[index], emaValue[index],0.5)
+			var thing = getAnomalies(values[index], lowEMS[index], highEMS[index], 1.1, index)
+			if (thing !== null) {
+				anomalies.push(thing);
+			}
+
 		}
 
-		console.log(allEMS[101], ' ' + emaValue[101])
+		//var anomalies = values.map((x, key) => {
+		//	return getAnomalies(x, lowEMS[key], highEMS[key], 1.1)
+		//});
 
 		res.send({
-			data   : values,
-			ema    : emaValue,
-			allEMS : allEMS
+			data      : values,
+			ema       : emaValue,
+			allEMS    : allEMS,
+			anomalies : anomalies
 		});
 	})
 })
@@ -84,20 +91,34 @@ function ems(emaValue, preEMS, value) {
 	}
 }
 
-function getAnomalies(value, emaValue, emsList) {
+//function getAnomalies(value, emaValue, emsList) {
+//
+//	var difference  = Math.abs(value - emaValue);
+//	var sensitivity = n * emsList;
+//
+//	if (difference > sensitivity) {
+//		//return "ALARM!";
+//		console.log('\n\nALARM!!!!!! ' + amount);
+//		// Testing to see what values show up
+//		console.log('TEST!');
+//		console.log('Value: ' + value);
+//		console.log('emaValue: ' + emaValue);
+//		console.log('Diff: ' + difference);
+//		console.log('Sens: ' + sensitivity);
+//		amount++;
+//		}
+//	}
+function getAnomalies(value, lems, hems, tolerance, index) {
+	lems *= tolerance;
+	hems *= tolerance
 
-	var difference  = Math.abs(value - emaValue);
-	var sensitivity = n * emsList;
-
-	if (difference > sensitivity) {
-		//return "ALARM!";
-		console.log('\n\nALARM!!!!!! ' + amount);
-		// Testing to see what values show up
-		console.log('TEST!');
-		console.log('Value: ' + value);
-		console.log('emaValue: ' + emaValue);
-		console.log('Diff: ' + difference);
-		console.log('Sens: ' + sensitivity);
-		amount++;
+	if (value > hems || value < lems) {
+		return {
+			x: index,
+			title: '',
+			text: ''
+		}
 	}
+	else
+		return null;
 }
