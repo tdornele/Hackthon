@@ -47,28 +47,21 @@ app.get('/', function (req, res) {
 				return x - emsList[key];
 			}
 		});
-		var allEMS = highEMS.map((x, key) => {
+		var allEMS = times.map((x, key) => {
 			//console.log('x: ' + x, 'lems: ' + parseFloat(lowEMS[key], 'ems: ' + emsList[key]));
-			return [parseFloat(x), parseFloat(lowEMS[key])]
+			return [x, parseFloat(highEMS[key]),parseFloat(lowEMS[key])]
 		});
 
 		var anomalies = [];
 		for (var index in values) {
-			//getAnomalies(values[index], emaValue[index], emsList[index]);
-			//getAnomalies(values[index], emaValue[index],0.5)
 			var thing = getAnomalies(values[index], lowEMS[index], highEMS[index], 0.5, index)
 			if (thing !== null) {
 				anomalies.push(thing);
 			}
 		}
-		//console.log('number of anomalies: ' + anomalies.length);
-
-		//var anomalies = values.map((x, key) => {
-		//	return getAnomalies(x, lowEMS[key], highEMS[key], 1.1)
-		//});
+		console.log('number of anomalies: ' + anomalies.length);
 
 		res.send({
-			time      : times,
 			data      : values,
 			ema       : emaValue,
 			allEMS    : allEMS,
@@ -93,23 +86,6 @@ function ems(emaValue, preEMS, value) {
 	}
 }
 
-//function getAnomalies(value, emaValue, emsList) {
-//
-//	var difference  = Math.abs(value - emaValue);
-//	var sensitivity = n * emsList;
-//
-//	if (difference > sensitivity) {
-//		//return "ALARM!";
-//		console.log('\n\nALARM!!!!!! ' + amount);
-//		// Testing to see what values show up
-//		console.log('TEST!');
-//		console.log('Value: ' + value);
-//		console.log('emaValue: ' + emaValue);
-//		console.log('Diff: ' + difference);
-//		console.log('Sens: ' + sensitivity);
-//		amount++;
-//		}
-//	}
 function getAnomalies(value, lems, hems, tolerance, index) {
 	//var firstLems = lems;
 	//var firstHems = hems;
