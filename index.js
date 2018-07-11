@@ -1,14 +1,11 @@
-var express     = require('express');
-var fs          = require('fs');
-var jsonfile    = require('jsonfile');
-var L
-var file        = 'data.json'
-var app         = express();
-var n           = 100;
-var cors        = require('cors');
+var express  = require('express');
+var fs       = require('fs');
+var jsonfile = require('jsonfile');
+var file     = 'dump (1).json'
+var app      = express();
+var n        = 100;
+var cors     = require('cors');
 app.use(cors());
-
-var amount = 0;
 
 app.get('/', function (req, res) {
 	var ema = require('exponential-moving-average');
@@ -24,8 +21,9 @@ app.get('/', function (req, res) {
 		values  = content.map((data) => {
 			return data['aggr']['sum'] / data['aggr']['count']['$numberLong']
 		})
-		times  = content.map((data) => {
-			return data['aggr']['sum'] / data['aggr']['count']['$numberLong']
+		console.log('\nNumber of values: ' + values.length);
+		times = content.map((data) => {
+			return data['ts']['$date']
 		})
 
 		var emaValue = [...Array(n).keys()].map(() => null).concat(ema(values, n));
@@ -63,13 +61,14 @@ app.get('/', function (req, res) {
 				anomalies.push(thing);
 			}
 		}
-		console.log(anomalies.length);
+		//console.log('number of anomalies: ' + anomalies.length);
 
 		//var anomalies = values.map((x, key) => {
 		//	return getAnomalies(x, lowEMS[key], highEMS[key], 1.1)
 		//});
 
 		res.send({
+			time      : times,
 			data      : values,
 			ema       : emaValue,
 			allEMS    : allEMS,
@@ -115,12 +114,12 @@ function getAnomalies(value, lems, hems, tolerance, index) {
 	//var firstLems = lems;
 	//var firstHems = hems;
 	lems *= tolerance;
-	hems *= (1+tolerance)
+	hems *= (1 + tolerance)
 	if (value > hems || value < lems) {
 		//console.log('\n\nFIRST LEMS: ' + firstLems + '           FIRST HEMS: ' + firstHems);
 		//console.log('lems: ' + lems + '      hems: ' + hems + '       value: ' + value)
 		return {
-			x: index
+			x : index
 			//title: '',
 			//text: ''
 		}
