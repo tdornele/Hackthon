@@ -91,8 +91,8 @@ function dataRequired() {
 			io.emit('data', {
 				data      : values,
 				ema       : emaValue,
-				allEMS    : allEMS,
-				anomalies : anomalies
+				allEMS,
+				anomalies
 			})
 		}, 100);
 	})
