@@ -5,77 +5,98 @@ var file     = 'dump (1).json'
 var app      = express();
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
-var n        = 100;
+var n;
 var cors     = require('cors');
+let clients = 0;
+
 app.use(cors());
 
-app.get('/', function (req, res) {
-	var ema = require('exponential-moving-average');
-	var values;
-	var times;
+io.on('connection', function (socket) {
+	console.log('client connected!')
+	clients++;
+	dataRequired();
+});
 
-	var content;
+function dataRequired() {
+	var ema = require('exponential-moving-average');
+	let values;
+	var times;
+	let content = [];
+
 	jsonfile.readFile(file, (err, data) => {
 		if (err) {
 			throw err;
 		}
-		content = data;
-		values  = content.map((data) => {
-			return data['aggr']['sum'] / data['aggr']['count']['$numberLong']
-		})
-		console.log('\nNumber of values: ' + values.length);
-		times = content.map((data) => {
-			return data['ts']['$date']
-		})
 
-		var emaValue = [...Array(n).keys()].map(() => null).concat(ema(values, n));
+		const original = data;
+		data = [...original];
 
-		var emsList = emaValue.map((x, key) => ems(x, emsList, values[key]));
-
-		var highEMS = emaValue.map((x, key) => {
-			if (x === null) {
-				return null;
+		let i = 0;
+		let interval = setInterval(() => {
+			console.log(`clients: ${clients}`);
+			if (data.length === 0) {
+				clearInterval(interval);
+				data = [...original];
 			}
-			else {
-				return parseFloat(x) + emsList[key];
-			}
-		});
 
-		var lowEMS = emaValue.map((x, key) => {
-			if (x === null) {
-				return null;
-			}
-			else {
-				return x - emsList[key];
-			}
-		});
-		var allEMS = times.map((x, key) => {
-			//console.log('x: ' + x, 'lems: ' + parseFloat(lowEMS[key], 'ems: ' + emsList[key]));
-			return [x, parseFloat(highEMS[key]),parseFloat(lowEMS[key])]
-		});
+			let metric = data.pop();
+			if (i++ < 100) { n = i; }
+			else{ n = 100; }
 
-		var anomalies = [];
-		for (var index in values) {
-			var thing = getAnomalies(values[index], lowEMS[index], highEMS[index], 0.5, index)
-			if (thing !== null) {
-				anomalies.push(thing);
-			}
-		}
-		console.log('number of anomalies: ' + anomalies.length);
+			content.push(metric);
+			//console.log(data)
+			values = content.map((valuesData) => {
+				return valuesData['aggr']['sum'] / valuesData['aggr']['count']['$numberLong']
+			})
+			console.log('\nNumber of values: ' + values.length);
+			times = content.map((TimeData) => {
+				return TimeData['ts']['$date']
+			})
 
-		res.send({
-			data      : values,
-			ema       : emaValue,
-			allEMS    : allEMS,
-			anomalies : anomalies
-		});
+			let range = (num) => [...Array(num).keys()].map(() => null);
+			var emaValue = range(n).concat(ema(values, n));
+
+			var emsList = emaValue.map((x, key) => ems(x, emsList, values[key]));
+
+			var highEMS = emaValue.map((x, key) => {
+				if (x === null) {
+					return null;
+				}
+				else {
+					return parseFloat(x) + emsList[key];
+				}
+			});
+
+			var lowEMS = emaValue.map((x, key) => {
+				if (x === null) {
+					return null;
+				}
+				else {
+					return x - emsList[key];
+				}
+			});
+			var allEMS = times.map((x, key) => {
+				//console.log('x: ' + x, 'lems: ' + parseFloat(lowEMS[key], 'ems: ' + emsList[key]));
+				return [x, parseFloat(highEMS[key]), parseFloat(lowEMS[key])]
+			});
+
+			var anomalies = [];
+			for (var index in values) {
+				var thing = getAnomalies(values[index], lowEMS[index], highEMS[index], 0.5, index)
+				if (thing !== null) {
+					anomalies.push(thing);
+				}
+			}
+			console.log('number of anomalies: ' + anomalies.length);
+			io.emit('data', {
+				data      : values,
+				ema       : emaValue,
+				allEMS    : allEMS,
+				anomalies : anomalies
+			})
+		}, 100);
 	})
-})
-
-app.listen(3000, function () {
-	console.log('Server listening')
-	//readingData()
-})
+}
 
 function ems(emaValue, preEMS, value) {
 	var w = 2 / (n + 1);
@@ -84,7 +105,7 @@ function ems(emaValue, preEMS, value) {
 		return Math.sqrt(w * (Math.pow(emaValue, 2) + ((1 - w) * (Math.pow((value - emaValue), 2)))));
 	}
 	else {
-		return Math.sqrt(w * (Math.pow(preEMS[preEMS.length() - 1], 2) + ((1 - w) * (Math.pow((value - emaValue), 2)))));
+		return Math.sqrt(w * (Math.pow(preEMS[preEMS.length - 1], 2) + ((1 - w) * (Math.pow((value - emaValue), 2)))));
 	}
 }
 
@@ -105,3 +126,8 @@ function getAnomalies(value, lems, hems, tolerance, index) {
 	else
 		return null;
 }
+
+var port = 3001
+http.listen(port, function (){
+	console.log('listening on *:' + port)
+});
