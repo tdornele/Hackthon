@@ -13,6 +13,7 @@ var amount = 0;
 app.get('/', function (req, res) {
 	var ema = require('exponential-moving-average');
 	var values;
+	var times;
 
 	var content;
 	jsonfile.readFile(file, (err, data) => {
@@ -21,6 +22,9 @@ app.get('/', function (req, res) {
 		}
 		content = data;
 		values  = content.map((data) => {
+			return data['aggr']['sum'] / data['aggr']['count']['$numberLong']
+		})
+		times  = content.map((data) => {
 			return data['aggr']['sum'] / data['aggr']['count']['$numberLong']
 		})
 
@@ -108,13 +112,13 @@ function ems(emaValue, preEMS, value) {
 //		}
 //	}
 function getAnomalies(value, lems, hems, tolerance, index) {
-	var firstLems = lems;
-	var firstHems = hems;
+	//var firstLems = lems;
+	//var firstHems = hems;
 	lems *= tolerance;
 	hems *= (1+tolerance)
 	if (value > hems || value < lems) {
-		console.log('\n\nFIRST LEMS: ' + firstLems + '           FIRST HEMS: ' + firstHems);
-		console.log('lems: ' + lems + '      hems: ' + hems + '       value: ' + value)
+		//console.log('\n\nFIRST LEMS: ' + firstLems + '           FIRST HEMS: ' + firstHems);
+		//console.log('lems: ' + lems + '      hems: ' + hems + '       value: ' + value)
 		return {
 			x: index
 			//title: '',
