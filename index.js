@@ -49,9 +49,17 @@ function dataRequired() {
 				return valuesData['aggr']['sum'] / valuesData['aggr']['count']['$numberLong']
 			})
 			console.log('\nNumber of values: ' + values.length);
-			times = content.map((TimeData) => {
+			timesWrongFormat = content.map((TimeData) => {
 				return TimeData['ts']['$date']
 			})
+			console.log('TimeTS: ' + timesWrongFormat[5]);
+
+			let times = timesWrongFormat.map((x, key) => {
+				let t = new Date(x);
+				let hours = t.getHours();
+				return hours + ':00:00';
+			})
+			console.log('Time: ' + times[5]);
 
 			let range = (num) => [...Array(num).keys()].map(() => null);
 			var emaValue = range(n).concat(ema(values, n));
