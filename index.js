@@ -9,10 +9,18 @@ var n;
 var cors     = require('cors');
 let clients = 0;
 
-var counter; // stores the number of data values sent
-var valuesAnomalous = []; // stores the last 10 anomalous data values
-valuesAnomalous.size = 10; // list of size 10
-var preEMS; // the previous EMS value
+var dataQueue    = [] // queue that stores the last 10 pieces of data
+var anomalyQueue = [] // queue that stores the last 10 pieces of anomalous data
+var queueLength  = 10; // length of both queue
+var prevEMA; // the previous ema
+var preEMS; // the previous ems
+var emaValue; // the current ema value
+var emsValue; // current ems value
+var hems; // higher ems range
+var lems; // lower ems range
+var emsRange; // json array of hems and lems
+var info; // JSON object of the data
+var values; // list of data
 
 app.use(cors());
 
@@ -24,7 +32,6 @@ io.on('connection', function (socket) {
 
 function dataRequired() {
 	var ema = require('exponential-moving-average');
-	let values;
 	var times;
 	let content = [];
 
@@ -38,9 +45,6 @@ function dataRequired() {
 
 		let i = 0;
 
-		// set the number of data values to 0
-		counter = 0;
-
 		let interval = setInterval(() => {
 			console.log(`clients: ${clients}`);
 			if (data.length === 0) {
@@ -50,8 +54,6 @@ function dataRequired() {
 
 			// get the data value
 			let metric = data.pop();
-			// increment the counter
-			counter ++;
 
 			if (i++ < 100) { n = i; }
 			else{ n = 100; }
@@ -78,71 +80,97 @@ function dataRequired() {
 			console.log('Time: ' + times[5]);
 
 			let range = (num) => [...Array(num).keys()].map(() => null);
-			/*
-					GET THE REQUIRED DATA VALUES
-			*/
-			// calculate the ema
-			var emaValue = ema(values,n);
-			// calculate the ems
-			var emsValue = ems(emaValue,preEMS,metric);
-			// calculate the higher ems range
-			var hems = parseFloat(emaValue) + emsValue;
-			// calculate the lower ems range
-			var lems = parseFloat(emaValue) - emsValue;
 
-			// check the data value is not anomalous
-			if (isAnomaly(emaValue,emsValue,metric,time)) { // if it is
+			process(io, values[i],times[i]);
 
-			}
-			else { // if it is not
-				// empty the stored anomalous data value
-			}
-
-
-
-			//var emaValue = range(n).concat(ema(values, n)); // cal
-			// var emsValue = ema(x,emsList)
-
-			var emsList = emaValue.map((x, key) => ems(x, emsList, values[key]));
-
-			var highEMS = emaValue.map((x, key) => {
-				if (x === null) {
-					return null;
-				}
-				else {
-					return parseFloat(x) + emsList[key];
-				}
-			});
-
-			var lowEMS = emaValue.map((x, key) => {
-				if (x === null) {
-					return null;
-				}
-				else {
-					return x - emsList[key];
-				}
-			});
-			var allEMS = times.map((x, key) => {
-				//console.log('x: ' + x, 'lems: ' + parseFloat(lowEMS[key], 'ems: ' + emsList[key]));
-				return [x, parseFloat(highEMS[key]), parseFloat(lowEMS[key])]
-			});
-
-			var anomalies = [];
-			for (var index in values) {
-				var thing = getAnomalies(values[index], lowEMS[index], highEMS[index], 0.5, index)
-				if (thing !== null) {
-					anomalies.push(thing);
-				}
-			}
-			console.log('number of anomalies: ' + anomalies.length);
-			io.emit('data', {
-				data      : values,
-				ema       : emaValue,
-				allEMS,
-				anomalies
-			})
 		}, 100);
 	})
+}
+
+// @ param data: the data value
+// @ param time: the time of the data value
+function process(io, data, time) {
+	/*
+			GET THE REQUIRED DATA VALUES
+	*/
+	// calculate the ema
+	emaValue = ema(values, n);
+	// calculate the ems
+	emsValue = ems(emaValue, preEMS, data);
+	// calculate the higher ems range
+	hems     = parseFloat(emaValue) + emsValue;
+	// calculate the lower ems range
+	lems     = parseFloat(emaValue) - emsValue;
+	// create the json array of hems and lems
+	emsRange = [
+		hems,
+		lems
+	];
+
+	var anomaly = isAnomaly(emaValue, emsValue, data, time, lems, hems);
+	// create the json object of the data
+	info = {
+		data    : data,
+		time    : time,
+		ema     : emaValue,
+		allEMS  : emsRange,
+		anomaly : anomaly
+	};
+	/*
+			ADD DATA TO THE STACKS
+	*/
+	// check the data value is not anomalous
+	if (anomaly) { // if it is
+		// try add to anomaly queue
+		if (anomalyQueue.length === queueLength) { // if the queue is full
+			// no anomaly has occurred so
+			// make the correct data become the anomaly queue data
+			dataQueue = anomalyQueue;
+
+			// send the first bit of data
+			io.emit(dataQueue.shift());
+
+			// add info to the dataQueue
+			dataQueue.push(info);
+
+			// clear the anomaly queue
+			clear(anomalyQueue);
+		}
+		else { // if the queue is not full
+			// add the anomaly to the queue
+			anomalyQueue.push(info);
+
+			// reuse the previous ema
+			var reuse = dataQueue.shift(); // get the ema
+			dataQueue.push(reuse); // add it twice
+			dataQueue.push(reuse);
+		}
+	}
+	else { // if it is not an anomaly
+		// empty the stored anomalous data value
+		clear(anomalyQueue);
+		// check size of dataQueue to see it needs overriding
+		if (dataQueue.length === queueLength) { // if max size is reached
+			// send off the first element of the queue
+			io.emit(dataQueue.shift());
+
+			// add the data to the queue
+			dataQueue.push(info);
+		}
+		else { // if the queue isn't full
+			// add the data to the queue
+			dataQueue.push(info);
+		}
+	}
+}
+
+function isAnomaly(ema, ems, value, time, range) {
+	if (Math.abs(value - ema) > (value * ems)) { // if an anomaly has occurred
+		return true;
+	}
+	else { // otherwise, return a null
+		return false;
+	}
 }
 
 function ems(emaValue, preEMS, value) {
@@ -156,48 +184,8 @@ function ems(emaValue, preEMS, value) {
 	}
 }
 
-function getAnomalies(value, lems, hems, tolerance, index) {
-	lems *= tolerance;
-	hems *= (1 + tolerance)
-	if (value > hems || value < lems) { // if an anomaly
-
-			var to_return = {x : index}
-			// add to anomaly list
-			emaAnomalous.push(value);
-
-			// if the thresh hold has been reached
-			if (emaAnomalous.length === 10) {
-				// anomaly list becomes the normal list
-				emaStore = emaAnomalous;
-				// clear the list of anomalies
-				emaAnomalous = []
-				// return that no anomaly occurred
-				return null;
-			}
-			else { // if thresh hold hasn't been reached
-				// return the json object
-				return to_return;
-			}
-	}
-	else {
-		// if the data isn't anomalous
-		// clear the anomaly data
-		emaAnomalous = [];
-		return null;
-	}
-}
-
-function isAnomaly(ema, ems, value, time) {
-
-	if (Math.abs(value - ema) > (value * ems)) { // if an anomaly has occurred
-		return {
-			x: time,
-			data: value
-		};
-	}
-	else { // otherwise, return a null
-		return null;
-	}
+function clear(queue) {
+	queue = [];
 }
 
 var port = 3001
