@@ -1,38 +1,40 @@
-var express  = require('express');
-var fs       = require('fs');
-var jsonfile = require('jsonfile');
-var file     = 'dump (1).json'
-var app      = express();
-var http = require('http').Server(app);
-var io = require('socket.io')(http);
-var n;
-var cors     = require('cors');
-let clients = 0;
-var counter = 0;
-var dataQueue    = [] // queue that stores the last 10 pieces of data
-var anomalyQueue = [] // queue that stores the last 10 pieces of anomalous data
-var queueLength  = 10; // length of both queue
-var prevEMA; // the previous ema
-var preEMS; // the previous ems
-var emaValue; // the current ema value
-var emsValue; // current ems value
-var hems; // higher ems range
-var lems; // lower ems range
-var emsRange; // json array of hems and lems
-var info; // JSON object of the data
-var values; // list of data
+let express      = require('express');
+let fs           = require('fs');
+let jsonfile     = require('jsonfile');
+let file         = 'dump (1).json'
+let app          = express();
+let http         = require('http').Server(app);
+let io           = require('socket.io')(http);
+let n;
+let cors         = require('cors');
+let clients      = 0;
+let counter      = 0;
+let dataQueue    = [] // queue that stores the last 10 pieces of data
+let anomalyQueue = [] // queue that stores the last 10 pieces of anomalous data
+let queueLength  = 10; // length of both queue
+let prevEMA; // the previous ema
+let preEMS; // the previous ems
+let emaValue; // the current ema value
+let emsValue; // current ems value
+let hems; // higher ems range
+let lems; // lower ems range
+let emsRange; // json array of hems and lems
+let info; // JSON object of the data
+let values; // list of data
 
 app.use(cors());
 
 io.on('connection', function (socket) {
 	console.log('client connected!')
 	clients++;
-	if(clients == 1) {dataRequired();}
+	if (clients == 1) {
+		dataRequired();
+	}
 });
 
 function dataRequired() {
-	var ema = require('exponential-moving-average');
-	var times;
+	let ema     = require('exponential-moving-average');
+	let times;
 	let content = [];
 
 	jsonfile.readFile(file, (err, data) => {
@@ -41,7 +43,7 @@ function dataRequired() {
 		}
 
 		const original = data;
-		data = [...original];
+		data           = [...original];
 
 		let i = 0;
 
@@ -55,8 +57,12 @@ function dataRequired() {
 			// get the json object for the data
 			let metric = data.pop();
 
-			if (i++ < 100) { n = i; }
-			else{ n = 100; }
+			if (i < 100) {
+				n = i;
+			}
+			else {
+				n = 100;
+			}
 
 			content.push(metric);
 
@@ -70,7 +76,7 @@ function dataRequired() {
 			})
 
 			let times = timesWrongFormat.map((x, key) => {
-				let t = new Date(x);
+				let t     = new Date(x);
 				let hours = t.getHours();
 				return hours + ':00:00';
 			})
@@ -78,8 +84,8 @@ function dataRequired() {
 			let range = (num) => [...Array(num).keys()].map(() => null);
 
 			// process the data
-			process(ema, io, values[i],times[i]);
-
+			process(ema, io, values[i], times[i]);
+			i++;
 		}, 100);
 	})
 }
@@ -91,26 +97,27 @@ function process(ema, io, data, time) {
 			GET THE REQUIRED DATA VALUES
 	*/
 	// calculate the ema
-	emaValue = ema(values, n);
+	emaValue = parseFloat(ema(values, n).pop());
 	// calculate the ems
 	emsValue = ems(emaValue, preEMS, data);
 	// calculate the higher ems range
 	hems     = parseFloat(emaValue) + emsValue;
 	// calculate the lower ems range
 	lems     = parseFloat(emaValue) - emsValue;
+
 	// create the json array of hems and lems
 	emsRange = [
 		hems,
 		lems
 	];
 
-	var anomaly = isAnomaly(emaValue, emsValue, data, time, lems, hems);
+	let anomaly = isAnomaly(emaValue, emsValue, data, time, lems, hems, 0.1);
 	// create the json object of the data
-	info = {
+	info        = {
 		data    : data,
 		time    : time,
 		ema     : emaValue,
-		ems: emsValue,
+		ems     : emsValue,
 		allEMS  : emsRange,
 		anomaly : anomaly
 	};
@@ -119,6 +126,7 @@ function process(ema, io, data, time) {
 	*/
 	// check the data value is not anomalous
 	if (anomaly) { // if it is
+		console.log("can you work please");
 		// try add to anomaly queue
 		if (anomalyQueue.length === queueLength) { // if the queue is full
 			// no anomaly has occurred so
@@ -126,7 +134,9 @@ function process(ema, io, data, time) {
 			dataQueue = anomalyQueue;
 
 			// send the first bit of data
-			io.emit(dataQueue.shift());
+			let ev = dataQueue.shift();
+			console.log(137, ev);
+			io.emit(ev);
 
 			// add info to the dataQueue
 			dataQueue.push(info);
@@ -139,16 +149,17 @@ function process(ema, io, data, time) {
 			anomalyQueue.push(info);
 
 			// reuse the previous ema
-			var reuse = dataQueue.shift(); // get the ema
-			prevEMA = reuse.ema; // set the previous ema
-			preEMS = reuse.ems; // set previous ems
+			let reuse = dataQueue.shift(); // get the ema
+			console.log("reuse ems:    " + reuse.ems);
+			prevEMA   = reuse.ema; // set the previous ema
+			preEMS    = reuse.ems; // set previous ems
 			dataQueue.push(reuse); // add it twice
 			dataQueue.push(reuse);
 		}
 	}
 	else { // if it is not an anomaly
 		// set the previous ems and ema
-		preEMS = emsValue;
+		preEMS  = emsValue;
 		prevEMA = emaValue;
 
 		// empty the stored anomalous data value
@@ -156,7 +167,9 @@ function process(ema, io, data, time) {
 		// check size of dataQueue to see it needs overriding
 		if (dataQueue.length === queueLength) { // if max size is reached
 			// send off the first element of the queue
-			io.emit('data', dataQueue.shift());
+			let shift = dataQueue.shift();
+			console.log(shift)
+			io.emit('data', shift);
 
 			// add the data to the queue
 			dataQueue.push(info);
@@ -168,25 +181,39 @@ function process(ema, io, data, time) {
 	}
 }
 
-function isAnomaly(ema, ems, value, time, range) {
-	if (Math.abs(value - ema) > (value * ems)) { // if an anomaly has occurred
-		counter++;
+function isAnomaly(ema, ems, value, time, range, tolerance) {
+	//if (Math.abs(value - ema) > (value * ems)) { // if an anomaly has occurred
 		console.log("anomaly: " + counter);
-		return true;
+	//	return true;
+	//}
+	//else { // otherwise, return a null
+	//	return false;
+	//}
+	lems *= tolerance;
+	hems *= (1 + tolerance);
+	if(value > hems || value < lems) {
+		counter++;
+		return true
 	}
-	else { // otherwise, return a null
-		return false;
+	else {
+		return false
 	}
 }
 
 function ems(emaValue, preEMS, value) {
-	var w = 2 / (n + 1);
+	let w = 2 / (n + 1);
 
-	if (preEMS === undefined) {
-		return Math.sqrt(w * (Math.pow(emaValue, 2) + ((1 - w) * (Math.pow((value - emaValue), 2)))));
+	console.log("preEms:   " + preEMS);
+	if (emaValue === undefined) {
+		preEMS = 1;
+		emaValue = value;
+	}
+	else if (preEMS === undefined) {
+		preEMS = Math.sqrt(w * (Math.pow(emaValue, 2) + ((1 - w) * (Math.pow((value - emaValue), 2)))))
+		return preEMS;
 	}
 	else {
-		return Math.sqrt(w * (Math.pow(preEMS[preEMS.length - 1], 2) + ((1 - w) * (Math.pow((value - emaValue), 2)))));
+		return Math.sqrt(w * (Math.pow(preEMS, 2) + ((1 - w) * (Math.pow((value - emaValue), 2)))));
 	}
 }
 
@@ -194,7 +221,7 @@ function clear(queue) {
 	queue = [];
 }
 
-var port = 3001
-http.listen(port, function (){
+let port = 3001
+http.listen(port, function () {
 	console.log('listening on *:' + port)
 });
