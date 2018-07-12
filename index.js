@@ -3,23 +3,26 @@ var fs       = require('fs');
 var jsonfile = require('jsonfile');
 var file     = 'dump (1).json'
 var app      = express();
-var http = require('http').Server(app);
-var io = require('socket.io')(http);
+var http     = require('http').Server(app);
+var io       = require('socket.io')(http);
 var n;
 var cors     = require('cors');
-let clients = 0;
+let clients  = 0;
 
 app.use(cors());
 
 io.on('connection', function (socket) {
 	console.log('client connected!')
 	clients++;
-	if (clients == 1) {	dataRequired(); }
-	if (clients > 1){}
+	if (clients == 1) {
+		dataRequired();
+	}
+	if (clients > 1) {
+	}
 });
 
 function dataRequired() {
-	var ema = require('exponential-moving-average');
+	var ema     = require('exponential-moving-average');
 	let values;
 	var times;
 	let content = [];
@@ -30,9 +33,9 @@ function dataRequired() {
 		}
 
 		const original = data;
-		data = [...original];
+		data           = [...original];
 
-		let i = 0;
+		let i        = 0;
 		let interval = setInterval(() => {
 			console.log(`clients: ${clients}`);
 			if (data.length === 0) {
@@ -41,8 +44,12 @@ function dataRequired() {
 			}
 
 			let metric = data.pop();
-			if (i++ < 100) { n = i; }
-			else{ n = 100; }
+			if (i++ < 100) {
+				n = i;
+			}
+			else {
+				n = 100;
+			}
 
 			content.push(metric);
 			//console.log(data)
@@ -55,12 +62,12 @@ function dataRequired() {
 			})
 
 			let times = timesWrongFormat.map((x, key) => {
-				let t = new Date(x);
+				let t     = new Date(x);
 				let hours = t.getHours();
 				return hours + ':00:00';
 			})
 
-			let range = (num) => [...Array(num).keys()].map(() => null);
+			let range    = (num) => [...Array(num).keys()].map(() => null);
 			var emaValue = range(n).concat(ema(values, n));
 
 			var emsList = emaValue.map((x, key) => ems(x, emsList, values[key]));
@@ -89,17 +96,18 @@ function dataRequired() {
 
 			var anomalies = [];
 			for (var index in values) {
-				var thing = getAnomalies(values[index], lowEMS[index], highEMS[index], 0.5, index, times[index])
+				var thing = getAnomalies(values[index], lowEMS[index], highEMS[index], 0.5, index, times[index], emaValue[index], emsList[index])
 				if (thing !== null) {
 					anomalies.push(thing);
 				}
 			}
-			console.log('number of anomalies: ' + anomalies.length);
+			let amountAnom = anomalies.length;
+			console.log('number of anomalies: ' + amountAnom);
 			io.emit('data', {
-				data      : values,
-				ema       : emaValue,
-				allEMS,
-				anomalies
+				data      : values[i],
+				ema       : emaValue[i],
+				allEMS    : allEMS[i],
+				anomalies : anomalies[amountAnom - 1]
 			})
 		}, 100);
 	})
@@ -116,20 +124,26 @@ function ems(emaValue, preEMS, value) {
 	}
 }
 
-function getAnomalies(value, lems, hems, tolerance, index, time) {
-	//var firstLems = lems;
-	//var firstHems = hems;
-	//let m = n +1
-	lems *= tolerance;
-	hems *= (1 + tolerance)
-	if ( value > hems || value < lems ) {
-		//console.log('\n\nFIRST LEMS: ' + firstLems + '           FIRST HEMS: ' + firstHems);
-		//console.log('lems: ' + lems + '      hems: ' + hems + '       value: ' + value)
+function getAnomalies(value, lems, hems, tolerance, index, time, emaValue, ems) {
+	//lems *= tolerance;
+	//hems *= (1 + tolerance)
+	//if ( value > hems || value < lems ) {
+	//	return {
+	//		time: time,
+	//		value: value
+	//	}
+	//}
+	//else
+	//	return null;
+	let diff = value - emaValue;
+	let sens = n * ems;
+	if (diff < 0) {
+		diff *= -1;
+	}
+	if (diff > sens) {
 		return {
-			time: time,
-			value: value
-			//title: '',
-			//text: ''
+			time  : time,
+			value : value
 		}
 	}
 	else
@@ -137,6 +151,6 @@ function getAnomalies(value, lems, hems, tolerance, index, time) {
 }
 
 var port = 3001
-http.listen(port, function (){
+http.listen(port, function () {
 	console.log('listening on *:' + port)
 });
