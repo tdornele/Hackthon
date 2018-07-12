@@ -113,6 +113,7 @@ function process(io, data, time) {
 		data    : data,
 		time    : time,
 		ema     : emaValue,
+		ems: emsValue,
 		allEMS  : emsRange,
 		anomaly : anomaly
 	};
@@ -142,11 +143,17 @@ function process(io, data, time) {
 
 			// reuse the previous ema
 			var reuse = dataQueue.shift(); // get the ema
+			prevEMA = reuse.ema; // set the previous ema
+			preEMS = reuse.ems; // set previous ems
 			dataQueue.push(reuse); // add it twice
 			dataQueue.push(reuse);
 		}
 	}
 	else { // if it is not an anomaly
+		// set the previous ems and ema
+		preEMS = emsValue;
+		prevEMA = emaValue;
+
 		// empty the stored anomalous data value
 		clear(anomalyQueue);
 		// check size of dataQueue to see it needs overriding
