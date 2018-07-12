@@ -15,7 +15,7 @@ let queueLength  = 10; // length of both queue
 let prevEMA; // the previous ema
 let preEMS; // the previous ems
 let emaValue; // the current ema value
-let emsValue; // current ems value
+let emsValue = 1; // current ems value
 let hems; // higher ems range
 let lems; // lower ems range
 let emsRange; // json array of hems and lems
@@ -84,7 +84,20 @@ function dataRequired() {
 			let range = (num) => [...Array(num).keys()].map(() => null);
 
 			// process the data
-			process(ema, io, values[i], times[i]);
+			if (i < 100 ) {
+				io.emit('data', {
+					data    : data,
+					time    : times[i],
+					ema     : emaValue,
+					ems     : emsValue,
+					allEMS  : emsRange,
+					anomaly :false
+				});
+			}
+			else {
+				process(ema, io, values[i], times[i]);
+			}
+
 			i++;
 		}, 100);
 	})
@@ -149,12 +162,19 @@ function process(ema, io, data, time) {
 			anomalyQueue.push(info);
 
 			// reuse the previous ema
-			let reuse = dataQueue.shift(); // get the ema
-			console.log("reuse ems:    " + reuse.ems);
-			prevEMA   = reuse.ema; // set the previous ema
-			preEMS    = reuse.ems; // set previous ems
-			dataQueue.push(reuse); // add it twice
-			dataQueue.push(reuse);
+			if (dataQueue.length !== 0) {
+				let reuse = dataQueue.shift(); // get the ema
+				prevEMA   = reuse['ema']; // set the previous ema
+				preEMS    = reuse['ems']; // set previous ems
+				dataQueue.push(reuse);
+				dataQueue.push(reuse);
+			}
+			else {
+				prevEMA = values[n]
+				preEMS = prevEMA;
+			}
+			//dataQueue.push(reuse); // add it twice
+			//dataQueue.push(reuse);
 		}
 	}
 	else { // if it is not an anomaly
@@ -182,15 +202,10 @@ function process(ema, io, data, time) {
 }
 
 function isAnomaly(ema, ems, value, time, range, tolerance) {
-	//if (Math.abs(value - ema) > (value * ems)) { // if an anomaly has occurred
-		console.log("anomaly: " + counter);
-	//	return true;
-	//}
-	//else { // otherwise, return a null
-	//	return false;
-	//}
+
 	lems *= tolerance;
 	hems *= (1 + tolerance);
+
 	if(value > hems || value < lems) {
 		counter++;
 		return true
@@ -204,9 +219,10 @@ function ems(emaValue, preEMS, value) {
 	let w = 2 / (n + 1);
 
 	console.log("preEms:   " + preEMS);
-	if (emaValue === undefined) {
+	if (emaValue === NaN) {
 		preEMS = 1;
 		emaValue = value;
+		return preEMS
 	}
 	else if (preEMS === undefined) {
 		preEMS = Math.sqrt(w * (Math.pow(emaValue, 2) + ((1 - w) * (Math.pow((value - emaValue), 2)))))
