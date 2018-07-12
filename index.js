@@ -14,7 +14,8 @@ app.use(cors());
 io.on('connection', function (socket) {
 	console.log('client connected!')
 	clients++;
-	dataRequired();
+	if (clients == 1) {	dataRequired(); }
+	if (clients > 1){}
 });
 
 function dataRequired() {
@@ -52,14 +53,12 @@ function dataRequired() {
 			timesWrongFormat = content.map((TimeData) => {
 				return TimeData['ts']['$date']
 			})
-			console.log('TimeTS: ' + timesWrongFormat[5]);
 
 			let times = timesWrongFormat.map((x, key) => {
 				let t = new Date(x);
 				let hours = t.getHours();
 				return hours + ':00:00';
 			})
-			console.log('Time: ' + times[5]);
 
 			let range = (num) => [...Array(num).keys()].map(() => null);
 			var emaValue = range(n).concat(ema(values, n));
@@ -90,7 +89,7 @@ function dataRequired() {
 
 			var anomalies = [];
 			for (var index in values) {
-				var thing = getAnomalies(values[index], lowEMS[index], highEMS[index], 0.5, index)
+				var thing = getAnomalies(values[index], lowEMS[index], highEMS[index], 0.5, index, times[index])
 				if (thing !== null) {
 					anomalies.push(thing);
 				}
@@ -117,16 +116,18 @@ function ems(emaValue, preEMS, value) {
 	}
 }
 
-function getAnomalies(value, lems, hems, tolerance, index) {
+function getAnomalies(value, lems, hems, tolerance, index, time) {
 	//var firstLems = lems;
 	//var firstHems = hems;
+	//let m = n +1
 	lems *= tolerance;
 	hems *= (1 + tolerance)
-	if (value > hems || value < lems) {
+	if ( value > hems || value < lems ) {
 		//console.log('\n\nFIRST LEMS: ' + firstLems + '           FIRST HEMS: ' + firstHems);
 		//console.log('lems: ' + lems + '      hems: ' + hems + '       value: ' + value)
 		return {
-			x : index
+			time: time,
+			value: value
 			//title: '',
 			//text: ''
 		}
