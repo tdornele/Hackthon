@@ -8,7 +8,7 @@ var io = require('socket.io')(http);
 var n;
 var cors     = require('cors');
 let clients = 0;
-
+var counter = 0;
 var dataQueue    = [] // queue that stores the last 10 pieces of data
 var anomalyQueue = [] // queue that stores the last 10 pieces of anomalous data
 var queueLength  = 10; // length of both queue
@@ -27,7 +27,7 @@ app.use(cors());
 io.on('connection', function (socket) {
 	console.log('client connected!')
 	clients++;
-	dataRequired();
+	if(clients == 1) {dataRequired();}
 });
 
 function dataRequired() {
@@ -52,7 +52,7 @@ function dataRequired() {
 				data = [...original];
 			}
 
-			// get the data value
+			// get the json object for the data
 			let metric = data.pop();
 
 			if (i++ < 100) { n = i; }
@@ -69,19 +69,16 @@ function dataRequired() {
 				return TimeData['ts']['$date']
 			})
 
-			console.log('TimeTS: ' + timesWrongFormat[5]);
-
 			let times = timesWrongFormat.map((x, key) => {
 				let t = new Date(x);
 				let hours = t.getHours();
 				return hours + ':00:00';
 			})
 
-			console.log('Time: ' + times[5]);
-
 			let range = (num) => [...Array(num).keys()].map(() => null);
 
-			process(io, values[i],times[i]);
+			// process the data
+			process(ema, io, values[i],times[i]);
 
 		}, 100);
 	})
@@ -89,7 +86,7 @@ function dataRequired() {
 
 // @ param data: the data value
 // @ param time: the time of the data value
-function process(io, data, time) {
+function process(ema, io, data, time) {
 	/*
 			GET THE REQUIRED DATA VALUES
 	*/
@@ -159,7 +156,7 @@ function process(io, data, time) {
 		// check size of dataQueue to see it needs overriding
 		if (dataQueue.length === queueLength) { // if max size is reached
 			// send off the first element of the queue
-			io.emit(dataQueue.shift());
+			io.emit('data', dataQueue.shift());
 
 			// add the data to the queue
 			dataQueue.push(info);
@@ -173,6 +170,8 @@ function process(io, data, time) {
 
 function isAnomaly(ema, ems, value, time, range) {
 	if (Math.abs(value - ema) > (value * ems)) { // if an anomaly has occurred
+		counter++;
+		console.log("anomaly: " + counter);
 		return true;
 	}
 	else { // otherwise, return a null
