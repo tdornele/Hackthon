@@ -11,7 +11,7 @@ let clients      = 0;
 let counter      = 0;
 let dataQueue    = [] // queue that stores the last 10 pieces of data
 let anomalyQueue = [] // queue that stores the last 10 pieces of anomalous data
-let queueLength  = 10; // length of both queue
+let queueLength  = 3; // length of both queue
 let prevEMA; // the previous ema
 let preEMS; // the previous ems
 let emaValue; // the current ema value
@@ -27,9 +27,8 @@ app.use(cors());
 io.on('connection', function (socket) {
 	console.log('client connected!')
 	clients++;
-	if (clients == 1) {
-		dataRequired();
-	}
+	if (clients == 1) {	dataRequired();	}
+	if (clients > 1) { }
 });
 
 function dataRequired() {
@@ -50,7 +49,7 @@ function dataRequired() {
 		let interval = setInterval(() => {
 			console.log(`clients: ${clients}`);
 			if (data.length === 0) {
-				clearInterval(interval);
+				//clearInterval(interval);
 				data = [...original];
 			}
 
@@ -86,20 +85,22 @@ function dataRequired() {
 			// process the data
 			if (i < 100 ) {
 				io.emit('data', {
-					data    : data,
-					time    : times[i],
-					ema     : emaValue,
-					ems     : emsValue,
-					allEMS  : emsRange,
+					data    : values[i],
+					time    : timesWrongFormat[i],
+					ema     : null,
+					ems     : null,
+					lems: null,
+					hems: null,
+					allEMS: [],
 					anomaly :false
 				});
 			}
 			else {
-				process(ema, io, values[i], times[i]);
+				process(ema, io, values[i], timesWrongFormat[i]);
 			}
 
 			i++;
-		}, 100);
+		}, 400);
 	})
 }
 
@@ -124,14 +125,16 @@ function process(ema, io, data, time) {
 		lems
 	];
 
-	let anomaly = isAnomaly(emaValue, emsValue, data, time, lems, hems, 0.1);
+	let anomaly = isAnomaly(emaValue, emsValue, data, time, lems, hems, 0.0);
 	// create the json object of the data
 	info        = {
 		data    : data,
 		time    : time,
 		ema     : emaValue,
 		ems     : emsValue,
-		allEMS  : emsRange,
+		lems: lems,
+		hems: hems,
+		allEMS: emsRange,
 		anomaly : anomaly
 	};
 	/*
@@ -201,7 +204,7 @@ function process(ema, io, data, time) {
 	}
 }
 
-function isAnomaly(ema, ems, value, time, range, tolerance) {
+function isAnomaly(ema, ems, value, time, lems, hems, tolerance) {
 
 	lems *= tolerance;
 	hems *= (1 + tolerance);
@@ -220,7 +223,7 @@ function ems(emaValue, preEMS, value) {
 
 	console.log("preEms:   " + preEMS);
 	if (emaValue === NaN) {
-		preEMS = 1;
+		preEMS   = 1;
 		emaValue = value;
 		return preEMS
 	}
@@ -229,7 +232,7 @@ function ems(emaValue, preEMS, value) {
 		return preEMS;
 	}
 	else {
-		return Math.sqrt(w * (Math.pow(preEMS, 2) + ((1 - w) * (Math.pow((value - emaValue), 2)))));
+		return (Math.sqrt(w * (Math.pow(preEMS, 2) + ((1 - w) * (Math.pow((value - emaValue), 2)))))+2);
 	}
 }
 
