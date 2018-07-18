@@ -14,6 +14,9 @@ let anomalyQueue = [] // queue that stores the last 10 pieces of anomalous data
 let queueLength  = 3; // length of both queue
 let prevEMA; // the previous ema
 let preEMS; // the previous ems
+let preLEMS;
+let preHEMS;
+let preALLEMS;
 let emaValue; // the current ema value
 let emsValue = 1; // current ems value
 let hems; // higher ems range
@@ -169,8 +172,20 @@ function process(ema, io, data, time) {
 				let reuse = dataQueue.shift(); // get the ema
 				prevEMA   = reuse['ema']; // set the previous ema
 				preEMS    = reuse['ems']; // set previous ems
+				preLEMS = reuse['lems']; // set previous lems
+				preHEMS = reuse['hems']; // set previous hems
+				preALLEMS = reuse['allEMS'];
+
 				dataQueue.push(reuse);
-				dataQueue.push(reuse);
+
+				info.ema = prevEMA;
+				info.ems = preEMS;
+				info.lems = preLEMS;
+				info.hems = preHEMS;
+				info.allEMS = preALLEMS;
+
+				dataQueue.push(info);
+				io.emit(info);
 			}
 			else {
 				prevEMA = values[n]
@@ -206,7 +221,7 @@ function process(ema, io, data, time) {
 
 function isAnomaly(ema, ems, value, time, lems, hems, tolerance) {
 
-	lems *= tolerance;
+	lems = lems - (lems*tolerance);
 	hems *= (1 + tolerance);
 
 	if(value > hems || value < lems) {
